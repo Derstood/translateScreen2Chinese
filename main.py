@@ -15,7 +15,7 @@ translator = Translator()
 # 全局变量，用于存储最新的OCR文本和翻译后文本
 latest_ocr_text = ""
 latest_translated_text = ""
-
+translate_times = 0
 
 # 处理文本函数
 def deal_text(text):
@@ -32,7 +32,7 @@ def deal_text(text):
 
 # 截图、OCR、翻译循环线程函数
 def capture_translate_thread():
-    global latest_ocr_text, latest_translated_text
+    global latest_ocr_text, latest_translated_text, translate_times
     while True:
         # 截图
         screenshot = ImageGrab.grab(bbox=(650, 1140, 1900, 1380))
@@ -46,13 +46,14 @@ def capture_translate_thread():
             if similarity < 0.8:
                 # 翻译识别出的文字
                 translated_text = translator.translate(ocr_text, src='en', dest='zh-cn').text
+                translate_times += 1
                 print("ori text:", ocr_text)
                 print("translated text:", translated_text)
                 if translated_text != "":
                     # 更新最新的OCR文本和翻译后文本
                     latest_ocr_text = ocr_text
                     latest_translated_text = translated_text
-        # 等待1秒后继续循环
+        # 等待2秒后继续循环
         time.sleep(2)
 
 
@@ -65,7 +66,7 @@ def f12_listener_thread():
         if latest_translated_text == "":
             latest_translated_text = "NULL"
         root = tk.Tk()
-        text_label = tk.Label(root, text=latest_translated_text, wraplength=880, justify="left", font=("Arial", 25))
+        text_label = tk.Label(root, text=str(translate_times) + ": " + latest_translated_text, wraplength=880, justify="left", font=("Arial", 25))
         text_label.pack(padx=10, pady=10)
         # 等待更新窗口布局
         root.update_idletasks()
@@ -84,7 +85,7 @@ capture_translate_thread = threading.Thread(target=capture_translate_thread)
 capture_translate_thread.daemon = True
 capture_translate_thread.start()
 
-# 启动监听F12按键并弹窗线程
+# 启动监听F12按键弹窗线程
 f12_listener_thread = threading.Thread(target=f12_listener_thread)
 f12_listener_thread.daemon = True
 f12_listener_thread.start()
