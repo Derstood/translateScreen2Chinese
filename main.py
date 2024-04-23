@@ -4,37 +4,68 @@ from googletrans import Translator
 import keyboard
 import os
 import tkinter as tk
-from tkinter import messagebox
+import threading
+import time
+from difflib import SequenceMatcher
 
+os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
+os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
 translator = Translator()
 
-def close_window(root):
-    root.destroy()
-def on_F12_pressed(event):
-    # 截图
-    screenshot = ImageGrab.grab(bbox=(650, 1140, 1900,1380))
-    screenshot.save("screenshot.png")
-    # 使用Tesseract进行文字识别
-    text = pytesseract.image_to_string(screenshot, lang='eng', config='--psm 6')\
-        .replace('<<', '')\
-        .replace('_', '')\
-        .replace('|', 'I')\
-        .replace('\n', ' ')\
+# 全局变量，用于存储最新的OCR文本和翻译后文本
+latest_ocr_text = ""
+latest_translated_text = ""
+
+
+# 处理文本函数
+def deal_text(text):
+    return text.replace('<<', '')\
+        .replace('_', '') \
+        .replace('|', 'I') \
+        .replace('\n', ' ') \
         .replace('@', '') \
         .replace('=', '') \
         .replace('“', '') \
         .replace('”', '') \
         .replace('-', '')
-    if text == "":
-        return
-    # 翻译识别出的文字
-    translated_text = translator.translate(text, src='en', dest='zh-cn').text
-    print("原文本：", text)
-    print("翻译后：", translated_text)
-    # 创建弹窗并显示识别出的文字
-    if translated_text != "":
+
+
+# 截图、OCR、翻译循环线程函数
+def capture_translate_thread():
+    global latest_ocr_text, latest_translated_text
+    while True:
+        # 截图
+        screenshot = ImageGrab.grab(bbox=(650, 1140, 1900, 1380))
+        screenshot.save("screenshot.png")
+        # 使用Tesseract进行文字识别
+        ocr_text = deal_text(pytesseract.image_to_string(screenshot, lang='eng', config='--psm 6'))
+        if ocr_text != "":
+            # 检查与上次OCR文本的相似度
+            similarity = SequenceMatcher(None, ocr_text, latest_ocr_text).ratio()
+            print("similarity: ", similarity)
+            if similarity < 0.8:
+                # 翻译识别出的文字
+                translated_text = translator.translate(ocr_text, src='en', dest='zh-cn').text
+                print("ori text:", ocr_text)
+                print("translated text:", translated_text)
+                if translated_text != "":
+                    # 更新最新的OCR文本和翻译后文本
+                    latest_ocr_text = ocr_text
+                    latest_translated_text = translated_text
+        # 等待1秒后继续循环
+        time.sleep(2)
+
+
+# 监听F12按键并弹窗线程函数
+def f12_listener_thread():
+    global latest_translated_text
+    while True:
+        keyboard.wait('f12')
+        # 创建弹窗并显示最新的翻译后文本
+        if latest_translated_text == "":
+            latest_translated_text = "NULL"
         root = tk.Tk()
-        text_label = tk.Label(root, text=translated_text, wraplength=880, justify="left", font=("Arial", 25))
+        text_label = tk.Label(root, text=latest_translated_text, wraplength=880, justify="left", font=("Arial", 25))
         text_label.pack(padx=10, pady=10)
         # 等待更新窗口布局
         root.update_idletasks()
@@ -43,11 +74,20 @@ def on_F12_pressed(event):
         # 将窗口置顶
         root.attributes("-topmost", True)
         root.geometry(f"920x{text_height + 20}+400+500")
-        root.after(3000, close_window, root)
+        # 等待3秒后关闭窗口
+        root.after(3000, root.destroy)
         root.mainloop()
 
 
-# 绑定键盘事件
-keyboard.on_press_key('f12',on_F12_pressed)
-# 进入监听状态
+# 启动截图、OCR、翻译循环线程
+capture_translate_thread = threading.Thread(target=capture_translate_thread)
+capture_translate_thread.daemon = True
+capture_translate_thread.start()
+
+# 启动监听F12按键并弹窗线程
+f12_listener_thread = threading.Thread(target=f12_listener_thread)
+f12_listener_thread.daemon = True
+f12_listener_thread.start()
+
+# 进入主线程等待状态，直到按下ESC键退出程序
 keyboard.wait('esc')
