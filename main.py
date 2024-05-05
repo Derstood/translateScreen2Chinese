@@ -10,28 +10,14 @@ from difflib import SequenceMatcher
 from langdetect import detect_langs
 
 
-def is_english_within_3_lines(text):
-    # 平均词长小于4
+def is_conversation_within_3_lines(text):
+    # 平均单词的长度大于3
     if len(text.split()) * 3 > len(text):
         return False
+    # 不为空且最多3行
     if text == "" or text.count('\n') > 3:
         return False
-    try:
-        results = detect_langs(text)
-    except Exception as e:
-        print("Error occurred during language detection:", e)
-        return False
-    if results and (results[0].lang == "en"
-                    or results[0].lang == "fr"
-                    or results[0].lang == "af"
-                    or results[0].lang == "id"
-                    or results[0].lang == "sv"
-                    or results[0].lang == "tl"
-                    or results[0].lang == "fi"
-                    or results[0].lang == "no") \
-            and results[0].prob > 0.42:
-        return True
-    return False
+    return True
 
 
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
@@ -43,20 +29,35 @@ latest_ocr_text = ""
 latest_translated_text = ""
 translate_times = 0
 
+# 创建窗口并设置隐藏状态
+root = tk.Tk()
+root.withdraw()
+
+# 创建用于显示翻译后文本的 Label
+translated_text_label = tk.Label(root, text="", wraplength=880, justify="left", font=("Arial", 25))
+translated_text_label.pack(padx=10, pady=10)
+
+replacements = {
+            '<<': '',
+            '_': '',
+            '|': 'I',
+            '\n': ' ',
+            '@': '',
+            '=': '',
+            '“': '',
+            '”': '',
+            '-': '',
+            'NICK': '尼克'
+        }
+
 
 # 处理文本函数
 def deal_text(text):
-    if is_english_within_3_lines(text):
-        return text.replace('<<', '')\
-            .replace('_', '') \
-            .replace('|', 'I') \
-            .replace('\n', ' ') \
-            .replace('@', '') \
-            .replace('=', '') \
-            .replace('“', '') \
-            .replace('”', '') \
-            .replace('-', '') \
-            .replace('NICK', '尼克')
+    if is_conversation_within_3_lines(text):
+        global replacements
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        return text
     return ""
 
 
@@ -87,32 +88,35 @@ def capture_translate_thread():
                     # 更新最新的OCR文本和翻译后文本
                     latest_ocr_text = ocr_text
                     latest_translated_text = translated_text
-        # 等待2秒后继续循环
+                    # 将翻译后的文本同步到窗口中
+                    translated_text_label.config(text=latest_translated_text)
+                    # 更新窗口高度
+                    text_height = translated_text_label.winfo_reqheight()
+                    root.geometry(f"920x{text_height + 20}+400+500")
+        # 等待0.5秒后继续循环
         time.sleep(0.5)
 
 
-# 监听F12按键并弹窗线程函数
-def f12_listener_thread():
-    global latest_translated_text
-    while True:
-        keyboard.wait('f12')
-        # 创建弹窗并显示最新的翻译后文本
-        if latest_translated_text == "":
-            latest_translated_text = "NULL"
-        root = tk.Tk()
-        root.title("translate_times:   " + str(translate_times))
-        text_label = tk.Label(root, text=latest_translated_text, wraplength=880, justify="left", font=("Arial", 25))
-        text_label.pack(padx=10, pady=10)
-        # 等待更新窗口布局
-        root.update_idletasks()
-        # 根据文本内容的高度调整窗口大小
-        text_height = text_label.winfo_reqheight()
-        # 将窗口置顶
-        root.attributes("-topmost", True)
-        root.geometry(f"920x{text_height + 20}+400+500")
-        # 等待3秒后关闭窗口
-        root.after(2000, root.destroy)
-        root.mainloop()
+# 监听F12按键并显示翻译后文本的窗口函数
+def show_translated_text_window():
+    global root
+    root.deiconify()
+    # 确保窗口始终在顶层
+    root.attributes("-topmost", True)
+    # 等待3秒后隐藏窗口
+    time.sleep(3)
+    root.withdraw()
+
+
+def exit_app():
+    global root, translated_text_label
+    # 将翻译后的文本同步到窗口中
+    text = "退出使用"
+    translated_text_label.config(text=text)
+    text_height = translated_text_label.winfo_reqheight()
+    root.geometry(f"920x{text_height + 20}+400+500")
+    show_translated_text_window()
+    root.quit()
 
 
 # 启动截图、OCR、翻译循环线程
@@ -120,10 +124,11 @@ capture_translate_thread = threading.Thread(target=capture_translate_thread)
 capture_translate_thread.daemon = True
 capture_translate_thread.start()
 
-# 启动监听F12按键弹窗线程
-f12_listener_thread = threading.Thread(target=f12_listener_thread)
-f12_listener_thread.daemon = True
-f12_listener_thread.start()
+# 监听F12按键并显示翻译后文本的窗口
+keyboard.add_hotkey('f12', show_translated_text_window)
 
-# 进入主线程等待状态，直到按下ESC键退出程序
-keyboard.wait('esc')
+# 启动监听ESC按键并退出程序
+keyboard.add_hotkey('ctrl+esc', exit_app)
+
+# 主线程进入事件循环
+root.mainloop()
