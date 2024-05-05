@@ -12,7 +12,7 @@ from langdetect import detect_langs
 
 def is_english_within_3_lines(text):
     # 平均词长小于4
-    if len(text.split()) * 4 > len(text):
+    if len(text.split()) * 3 > len(text):
         return False
     if text == "" or text.count('\n') > 3:
         return False
@@ -25,8 +25,11 @@ def is_english_within_3_lines(text):
                     or results[0].lang == "fr"
                     or results[0].lang == "af"
                     or results[0].lang == "id"
+                    or results[0].lang == "sv"
+                    or results[0].lang == "tl"
+                    or results[0].lang == "fi"
                     or results[0].lang == "no") \
-            and results[0].prob > 0.55:
+            and results[0].prob > 0.42:
         return True
     return False
 
@@ -62,7 +65,7 @@ def capture_translate_thread():
     global latest_ocr_text, latest_translated_text, translate_times
     while True:
         # 截图
-        screenshot = ImageGrab.grab(bbox=(650, 1140, 1900, 1380)).convert('L').point(lambda p: p > 150 and 255)
+        screenshot = ImageGrab.grab(bbox=(650, 1140, 1900, 1380)).convert('L').point(lambda p: p > 180 and 255)
         screenshot.save("screenshot.png")
         # 使用Tesseract进行文字识别
         ocr_text = deal_text(pytesseract.image_to_string(screenshot, lang='eng', config='--psm 6'))
@@ -97,7 +100,7 @@ def f12_listener_thread():
         if latest_translated_text == "":
             latest_translated_text = "NULL"
         root = tk.Tk()
-        root.title(str(translate_times))
+        root.title("translate_times:   " + str(translate_times))
         text_label = tk.Label(root, text=latest_translated_text, wraplength=880, justify="left", font=("Arial", 25))
         text_label.pack(padx=10, pady=10)
         # 等待更新窗口布局
