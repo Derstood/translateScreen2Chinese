@@ -10,10 +10,12 @@ translateScreen to Chinese
 首次运行会在当前路径下载模型到model目录
 
 ### Note：
-google translator大陆地区无法使用，<br>
+google translator无需本地模型，在[google_trans分支](https://github.com/Derstood/translateScreen2Chinese/tree/google_trans)大陆地区无法使用，<br>
 需要配合10808 10809<br><br>
-如果已经肉身在外，可以删掉这两行：
+如果已经肉身在外，可以删掉这几行：
 ```python3
+import os
+...
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
 os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
 ```
