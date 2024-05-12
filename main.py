@@ -9,6 +9,8 @@ import time
 from difflib import SequenceMatcher
 from skimage.metrics import structural_similarity as ssim
 import numpy as np
+from datetime import datetime
+from transformers import MarianMTModel, MarianTokenizer
 
 
 def is_conversation_within_3_lines(text):
@@ -23,6 +25,14 @@ def is_conversation_within_3_lines(text):
 
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
 os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
+
+# 加载预训练模型和分词器
+cache_dir = "./model/"
+model_name = "Helsinki-NLP/opus-mt-en-zh"
+tokenizer = MarianTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
+model = MarianMTModel.from_pretrained(model_name, cache_dir=cache_dir)
+
+print("Init Finished")
 
 translator = Translator()
 
@@ -87,9 +97,13 @@ def capture_translate_thread():
         ocr_text = deal_text(pytesseract.image_to_string(screenshot, lang='eng', config='--psm 6'))
         if ocr_text != "":
             # 翻译识别出的文字
-            translated = translator.translate(ocr_text, src='en', dest='zh-cn')
-            if translated.text:
-                translated_text = translated.text
+            print(f"begin: {datetime.now().time()}")
+            translated_ids = model.generate(tokenizer(ocr_text, return_tensors="pt")["input_ids"])
+            translated = tokenizer.decode(translated_ids[0], skip_special_tokens=True)
+            # translated = translator.translate(ocr_text, src='en', dest='zh-cn')
+            print(f"after: {datetime.now().time()}")
+            if translated:
+                translated_text = translated
             else:
                 translated_text = "TRANSLATE ERROR"
             translate_times += 1
