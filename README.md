@@ -15,3 +15,6 @@ google translator大陆地区无法使用，<br>
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
 os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
 ```
+
+### env:
+pip install transformers sentencepiece torch torchvision torchaudio -i https://pypi.tuna.tsinghua.edu.cn/simple
