@@ -3,7 +3,8 @@ translateScreen to Chinese
 ### usage:
 | 按键 | 功能   |
 |---|---|
-| F12 | toggle|
+| F12 | show |
+| F11 | hide |
 | Ctrl +ESC | exit|
 
 ### Note：
