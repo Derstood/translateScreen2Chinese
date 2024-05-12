@@ -9,6 +9,12 @@ translateScreen to Chinese
 
 首次运行会在当前路径下载模型到model目录
 
+### TODO list
+1. 指定框选屏幕位置(现在是下方字幕，方便自己实际使用)
+2. 多个框选位置寄存，快速来回切换框选
+3. 加个程序图标
+4. UI优化（预计v0.8开始做）
+
 ### Note：
 google translator无需本地模型，在[google_trans分支](https://github.com/Derstood/translateScreen2Chinese/tree/google_trans)大陆地区无法使用，<br>
 需要配合10808 10809<br><br>
