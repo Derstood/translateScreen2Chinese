@@ -14,8 +14,8 @@ from transformers import MarianMTModel, MarianTokenizer
 
 
 def is_conversation_within_3_lines(text):
-    # 平均单词的长度大于3
-    if len(text.split()) * 3 > len(text):
+    # 平均单词的长度大于2.5
+    if len(text.split()) * 2.5 > len(text):
         return False
     # 不为空且最多3行
     if text == "" or text.count('\n') > 3:
@@ -35,6 +35,8 @@ model = MarianMTModel.from_pretrained(model_name, cache_dir=cache_dir)
 print("Init Finished")
 
 translator = Translator()
+
+PERIOD = 0.5  # 截图频率
 
 # 全局变量，用于存储最新的OCR文本和翻译后文本
 latest_ocr_text = ""
@@ -84,13 +86,15 @@ def capture_translate_thread():
         screenshot_array = np.array(screenshot)
         # 如果图片全黑或全白
         if np.all(screenshot_array == 0) or np.all(screenshot_array == 255):
-            time.sleep(0.3)
+            print("black & white")
+            time.sleep(PERIOD)
             continue
         if previous_screenshot:
             # 如果相似度高，则跳过 OCR 和翻译
             similarity = ssim(np.array(previous_screenshot), screenshot_array)
-            if similarity > 0.95:
-                time.sleep(0.3)
+            if similarity > 0.98:
+                print(similarity)
+                time.sleep(PERIOD)
                 continue
         screenshot.save("latest_screenshot.png")
         # 使用Tesseract进行文字识别
@@ -123,7 +127,7 @@ def capture_translate_thread():
                 previous_screenshot = screenshot
                 previous_screenshot.save("previous_screenshot.png")
         # 等待0.3秒后继续循环
-        time.sleep(0.3)
+        time.sleep(PERIOD)
 
 
 # 监听F12按键并显示翻译后文本的窗口函数
