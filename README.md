@@ -6,6 +6,7 @@ translateScreen to Chinese
 | F12 | show |
 | F11 | hide |
 | Ctrl +ESC | exit|
+首次运行会在当前路径下载模型到model目录
 
 ### Note：
 google translator大陆地区无法使用，<br>
@@ -18,6 +19,9 @@ os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
 
 ### env:
 pip install transformers sentencepiece torch torchvision torchaudio -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+### 生成exe:
+pyinstall ./main.spec
 
 
 # change log
