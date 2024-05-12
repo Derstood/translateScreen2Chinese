@@ -6,6 +6,7 @@ translateScreen to Chinese
 | F12 | show |
 | F11 | hide |
 | Ctrl +ESC | exit|
+
 首次运行会在当前路径下载模型到model目录
 
 ### Note：
