@@ -7,7 +7,8 @@ import tkinter as tk
 import threading
 import time
 from difflib import SequenceMatcher
-from langdetect import detect_langs
+from skimage.metrics import structural_similarity as ssim
+import numpy as np
 
 
 def is_conversation_within_3_lines(text):
@@ -22,11 +23,14 @@ def is_conversation_within_3_lines(text):
 
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
 os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
+
 translator = Translator()
 
 # 全局变量，用于存储最新的OCR文本和翻译后文本
 latest_ocr_text = ""
 latest_translated_text = ""
+latest_screenshot = None
+previous_screenshot = None
 translate_times = 0
 
 # 创建窗口并设置隐藏状态
@@ -38,17 +42,17 @@ translated_text_label = tk.Label(root, text="", wraplength=880, justify="left", 
 translated_text_label.pack(padx=10, pady=10)
 
 replacements = {
-            '<<': '',
-            '_': '',
-            '|': 'I',
-            '\n': ' ',
-            '@': '',
-            '=': '',
-            '“': '',
-            '”': '',
-            '-': '',
-            'NICK': '尼克'
-        }
+    '<<': '',
+    '_': '',
+    '|': 'I',
+    '\n': ' ',
+    '@': '',
+    '=': '',
+    '“': '',
+    '”': '',
+    '-': '',
+    'NICK': '尼克',
+}
 
 
 # 处理文本函数
@@ -63,38 +67,49 @@ def deal_text(text):
 
 # 截图、OCR、翻译循环线程函数
 def capture_translate_thread():
-    global latest_ocr_text, latest_translated_text, translate_times
+    global latest_ocr_text, latest_translated_text, latest_screenshot, previous_screenshot, translate_times
     while True:
         # 截图
         screenshot = ImageGrab.grab(bbox=(650, 1140, 1900, 1380)).convert('L').point(lambda p: p > 180 and 255)
-        screenshot.save("screenshot.png")
+        screenshot_array = np.array(screenshot)
+        # 如果图片全黑或全白
+        if np.all(screenshot_array == 0) or np.all(screenshot_array == 255):
+            time.sleep(0.3)
+            continue
+        if previous_screenshot:
+            # 如果相似度高，则跳过 OCR 和翻译
+            similarity = ssim(np.array(previous_screenshot), screenshot_array)
+            if similarity > 0.95:
+                time.sleep(0.3)
+                continue
+        screenshot.save("latest_screenshot.png")
         # 使用Tesseract进行文字识别
         ocr_text = deal_text(pytesseract.image_to_string(screenshot, lang='eng', config='--psm 6'))
         if ocr_text != "":
-            # 检查与上次OCR文本的相似度
-            similarity = SequenceMatcher(None, ocr_text, latest_ocr_text).ratio()
-            print("similarity: ", similarity)
-            if similarity < 0.8:
-                # 翻译识别出的文字
-                translated = translator.translate(ocr_text, src='en', dest='zh-cn')
-                if translated.text:
-                    translated_text = translated.text
-                else:
-                    translated_text = "TRANSLATE ERROR"
-                translate_times += 1
-                print("ori text:", ocr_text)
-                print("translated text:", translated_text)
-                if translated_text != "":
-                    # 更新最新的OCR文本和翻译后文本
-                    latest_ocr_text = ocr_text
-                    latest_translated_text = translated_text
-                    # 将翻译后的文本同步到窗口中
-                    translated_text_label.config(text=latest_translated_text)
-                    # 更新窗口高度
-                    text_height = translated_text_label.winfo_reqheight()
-                    root.geometry(f"920x{text_height + 20}+400+500")
-        # 等待0.5秒后继续循环
-        time.sleep(0.5)
+            # 翻译识别出的文字
+            translated = translator.translate(ocr_text, src='en', dest='zh-cn')
+            if translated.text:
+                translated_text = translated.text
+            else:
+                translated_text = "TRANSLATE ERROR"
+            translate_times += 1
+            print("ori text:", ocr_text)
+            print("translated text:", translated_text)
+            if translated_text != "":
+                # 更新最新的OCR文本和翻译后文本
+                latest_ocr_text = ocr_text
+                latest_translated_text = translated_text
+                # 将翻译后的文本同步到窗口中
+                translated_text_label.config(text=latest_translated_text)
+                # 更新窗口高度
+                text_height = translated_text_label.winfo_reqheight()
+                root.geometry(f"920x{text_height + 20}+400+550")
+                # 更新标题
+                root.title(f"Translate Times: {translate_times}")
+                previous_screenshot = screenshot
+                previous_screenshot.save("previous_screenshot.png")
+        # 等待0.3秒后继续循环
+        time.sleep(0.3)
 
 
 # 监听F12按键并显示翻译后文本的窗口函数
@@ -103,8 +118,10 @@ def show_translated_text_window():
     root.deiconify()
     # 确保窗口始终在顶层
     root.attributes("-topmost", True)
-    # 等待3秒后隐藏窗口
-    time.sleep(3)
+
+
+def hide_translated_text_window():
+    global root
     root.withdraw()
 
 
@@ -116,6 +133,7 @@ def exit_app():
     text_height = translated_text_label.winfo_reqheight()
     root.geometry(f"920x{text_height + 20}+400+500")
     show_translated_text_window()
+    time.sleep(2)
     root.quit()
 
 
@@ -126,6 +144,7 @@ capture_translate_thread.start()
 
 # 监听F12按键并显示翻译后文本的窗口
 keyboard.add_hotkey('f12', show_translated_text_window)
+keyboard.add_hotkey('f11', hide_translated_text_window)
 
 # 启动监听ESC按键并退出程序
 keyboard.add_hotkey('ctrl+esc', exit_app)
