@@ -23,14 +23,11 @@ def is_conversation_within_3_lines(text):
     return True
 
 
-os.environ['HTTP_PROXY'] = 'http://127.0.0.1:10809'
-os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10809'
-
 # 加载预训练模型和分词器
 cache_dir = "./model/"
 model_name = "Helsinki-NLP/opus-mt-en-zh"
-tokenizer = MarianTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
-model = MarianMTModel.from_pretrained(model_name, cache_dir=cache_dir)
+tokenizer = MarianTokenizer.from_pretrained(model_name, cache_dir=cache_dir, local_files_only=True, force_download=False)
+model = MarianMTModel.from_pretrained(model_name, cache_dir=cache_dir, local_files_only=True, force_download=False)
 
 print("Init Finished")
 
@@ -63,7 +60,7 @@ replacements = {
     '“': '',
     '”': '',
     '-': '',
-    'NICK': '尼克',
+    '...': ' '
 }
 
 
@@ -102,7 +99,12 @@ def capture_translate_thread():
         if ocr_text != "":
             # 翻译识别出的文字
             print(f"begin: {datetime.now().time()}")
-            translated_ids = model.generate(tokenizer(ocr_text, return_tensors="pt")["input_ids"])
+            translated_ids = model.generate(tokenizer(ocr_text, return_tensors="pt")["input_ids"],
+                                            max_length=50,  # 设置最大生成长度
+                                            do_sample=True,  # 进行采样
+                                            top_p=0.9,  # 使用top-p采样
+                                            no_repeat_ngram_size=3  # 防止重复的n-gram
+                                            )
             translated = tokenizer.decode(translated_ids[0], skip_special_tokens=True)
             # translated = translator.translate(ocr_text, src='en', dest='zh-cn')
             print(f"after: {datetime.now().time()}")
